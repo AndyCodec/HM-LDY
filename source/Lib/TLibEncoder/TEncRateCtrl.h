@@ -76,24 +76,33 @@ const Double g_RCBetaMaxValue  = -0.1;
 #define BETA1     1.2517
 #define BETA2     1.7860
 
+/*
+* LCU（CTU）级别的码率控制信息
+*/
 struct TRCLCU
 {
-  Int m_actualBits;
-  Int m_QP;     // QP of skip mode is set to g_RCInvalidQPValue
-  Int m_targetBits;
-  Double m_lambda;
-  Double m_bitWeight;
-  Int m_numberOfPixel;
-  Double m_costIntra;
-  Int m_targetBitsLeft;
+  Int m_actualBits; // 实际比特数
+  Int m_QP;     // QP of skip mode is set to g_RCInvalidQPValue 相应的QP
+  Int m_targetBits; // 目标比特数
+  Double m_lambda; // lambda参数
+  Double m_bitWeight; // 比特权重
+  Int m_numberOfPixel; // 像素的数量
+  Double m_costIntra; // 帧内的代价
+  Int m_targetBitsLeft; // 剩余的比特数（目标的剩余比特数）
 };
 
+/*
+** 码率控制参数！
+*/
 struct TRCParameter
 {
   Double m_alpha;
   Double m_beta;
 };
 
+/*
+** seq序列级别（级别比gop高）的码率控制
+*/
 class TEncRCSeq
 {
 public:
@@ -103,12 +112,12 @@ public:
 public:
   Void create( Int totalFrames, Int targetBitrate, Int frameRate, Int GOPSize, Int picWidth, Int picHeight, Int LCUWidth, Int LCUHeight, Int numberOfLevel, Bool useLCUSeparateModel, Int adaptiveBit );
   Void destroy();
-  Void initBitsRatio( Int bitsRatio[] );
-  Void initGOPID2Level( Int GOPID2Level[] );
+  Void initBitsRatio( Int bitsRatio[] ); // 初始化比特率
+  Void initGOPID2Level( Int GOPID2Level[] ); // 初始化gop到level的映射
   Void initPicPara( TRCParameter* picPara  = NULL );    // NULL to initial with default value
   Void initLCUPara( TRCParameter** LCUPara = NULL );    // NULL to initial with default value
-  Void updateAfterPic ( Int bits );
-  Void setAllBitRatio( Double basicLambda, Double* equaCoeffA, Double* equaCoeffB );
+  Void updateAfterPic ( Int bits ); // 在处理完一帧之后更新
+  Void setAllBitRatio( Double basicLambda, Double* equaCoeffA, Double* equaCoeffB ); // 设置总得比特率
 
 public:
   Int  getTotalFrames()                 { return m_totalFrames; }
@@ -159,14 +168,14 @@ private:
   Int m_picHeight;
   Int m_LCUWidth;
   Int m_LCUHeight;
-  Int m_numberOfLevel;
-  Int m_averageBits;
+  Int m_numberOfLevel; // level的数量
+  Int m_averageBits; // 平均的比特数
 
   Int m_numberOfPixel;
   Int64 m_targetBits;
   Int m_numberOfLCU;
   Int* m_bitsRatio;
-  Int* m_GOPID2Level;
+  Int* m_GOPID2Level; // gop的id到level的映射
   TRCParameter*  m_picPara;
   TRCParameter** m_LCUPara;
 
@@ -175,12 +184,15 @@ private:
   Double m_seqTargetBpp;
   Double m_alphaUpdate;
   Double m_betaUpdate;
-  Bool m_useLCUSeparateModel;
+  Bool m_useLCUSeparateModel; // 是否使用LCU分开的模型
 
   Int m_adaptiveBit;
   Double m_lastLambda;
 };
 
+/*
+** GOP级别的码率控制
+*/
 class TEncRCGOP
 {
 public:
@@ -193,7 +205,7 @@ public:
   Void updateAfterPicture( Int bitsCost );
 
 private:
-  Int  xEstGOPTargetBits( TEncRCSeq* encRCSeq, Int GOPSize );
+  Int  xEstGOPTargetBits( TEncRCSeq* encRCSeq, Int GOPSize );// 预估一个gop占用的比特数
   Void   xCalEquaCoeff( TEncRCSeq* encRCSeq, Double* lambdaRatio, Double* equaCoeffA, Double* equaCoeffB, Int GOPSize );
   Double xSolveEqua( Double targetBpp, Double* equaCoeffA, Double* equaCoeffB, Int GOPSize );
 
@@ -210,10 +222,13 @@ private:
   Int* m_picTargetBitInGOP;
   Int m_numPic;
   Int m_targetBits;
-  Int m_picLeft;
-  Int m_bitsLeft;
+  Int m_picLeft; // 还剩多少帧处理完成
+  Int m_bitsLeft; // 还剩多少比特
 };
 
+/*
+** 图像级别的码率控制
+*/
 class TEncRCPic
 {
 public:
@@ -280,31 +295,35 @@ public:
   Void setPicEstLambda( Double lambda )                   { m_picLambda = lambda; }
 
 private:
-  TEncRCSeq* m_encRCSeq;
-  TEncRCGOP* m_encRCGOP;
+  TEncRCSeq* m_encRCSeq; // 所属的码率控制序列
+  TEncRCGOP* m_encRCGOP; // 所属的码率控制gop
 
   Int m_frameLevel;
   Int m_numberOfPixel;
   Int m_numberOfLCU;
   Int m_targetBits;
-  Int m_estHeaderBits;
-  Int m_estPicQP;
+  Int m_estHeaderBits; // 帧头部/slice头部等占用的比特数
+  Int m_estPicQP; // 预估的帧的qp
   Int m_lowerBound;
   Double m_estPicLambda;
 
   Int m_LCULeft;
   Int m_bitsLeft;
-  Int m_pixelsLeft;
+  Int m_pixelsLeft; // 剩下的像素数量
 
-  TRCLCU* m_LCUs;
+  TRCLCU* m_LCUs; // 该帧对应的LCU码率控制对象
   Int m_picActualHeaderBits;    // only SH and potential APS
-  Double m_totalCostIntra;
-  Double m_remainingCostIntra;
+  Double m_totalCostIntra; // 帧内模式消耗的比特数
+  Double m_remainingCostIntra; // 帧内模式还剩余的比特数
   Int m_picActualBits;          // the whole picture, including header
   Int m_picQP;                  // in integer form
-  Double m_picLambda;
+  Double m_picLambda; // 帧的lambda参数
 };
 
+/*
+** 码率控制管理器
+** 管理了TEncRCSeq TEncRCGOP TEncRCPic等对象
+*/
 class TEncRateCtrl
 {
 public:
@@ -336,7 +355,7 @@ private:
   TEncRCSeq* m_encRCSeq;
   TEncRCGOP* m_encRCGOP;
   TEncRCPic* m_encRCPic;
-  list<TEncRCPic*> m_listRCPictures;
+  list<TEncRCPic*> m_listRCPictures; // TEncRCPic列表（应该是一个gop中/或者一个序列中的所有帧）
   Int        m_RCQP;
   Bool       m_CpbSaturationEnabled;    // Enable target bits saturation to avoid CPB overflow and underflow
   Int        m_cpbState;                // CPB State 

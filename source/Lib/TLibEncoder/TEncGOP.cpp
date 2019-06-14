@@ -1571,6 +1571,8 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     Int actualTotalBits      = 0;
     Int estimatedBits        = 0;
     Int tmpBitsBeforeWriting = 0;
+    
+    //在TEncGOP::compressGOP()中，对frame进行初始化
     if ( m_pcCfg->getUseRateCtrl() ) // TODO: does this work with multiple slices and slice-segments?
     {
       Int frameLevel = m_pcRateCtrl->getRCSeq()->getGOPID2Level( iGOPid );
@@ -1578,7 +1580,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       {
         frameLevel = 0;
       }
-      m_pcRateCtrl->initRCPic( frameLevel );
+      m_pcRateCtrl->initRCPic( frameLevel ); //对frame层级进行初始化
       estimatedBits = m_pcRateCtrl->getRCPic()->getTargetBits();
 
       if (m_pcRateCtrl->getCpbSaturationEnabled() && frameLevel != 0)

@@ -109,6 +109,9 @@ Void TEncTop::create ()
 
   m_cLoopFilter.create( m_maxTotalCUDepth );
 
+  //初始化函数m_cRateCtrl.init（）主要根据序列参数进行初始化，包括Int totalFrames, Int targetBitrate, Int frameRate, Int GOPSize, Int picWidth, 
+  //Int picHeight, Int LCUWidth, Int LCUHeight, Int keepHierBits, Bool useLCUSeparateModel, GOPEntry  GOPList[MAX_GOP]这里主要解释以下形参
+  //中的keepHierBits，即是否采用分层编码，若采用，则各帧的比特分配是不一样的，否则，各帧的比特分配权重相同，在之后的代码中进行详解。
   if ( m_RCEnableRateControl )
   {
     m_cRateCtrl.init( m_framesToBeEncoded, m_RCTargetBitrate, (Int)( (Double)m_iFrameRate/m_temporalSubsampleRatio + 0.5), m_iGOPSize, m_iSourceWidth, m_iSourceHeight,
@@ -357,7 +360,7 @@ Void TEncTop::encode( Bool flush, TComPicYuv* pcPicYuvOrg, TComPicYuv* pcPicYuvT
 
   if ( m_RCEnableRateControl )
   {
-    m_cRateCtrl.initRCGOP( m_iNumPicRcvd );
+    m_cRateCtrl.initRCGOP( m_iNumPicRcvd ); //对GOP级别内容进行初始化，主要内容是对一个GOP中的各帧进行计算。
   }
 
   // compress GOP

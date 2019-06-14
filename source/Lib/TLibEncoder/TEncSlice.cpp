@@ -832,7 +832,7 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
     ((TEncBinCABAC*)m_pcRDGoOnSbacCoder->getEncBinIf())->setBinCountingEnableFlag(true);
 
     Double oldLambda = m_pcRdCost->getLambda();
-    if ( m_pcCfg->getUseRateCtrl() )
+    if ( m_pcCfg->getUseRateCtrl() ) //在TEncSlice::compressSlice()中，对LCU进行初始化，主要是bpp，lambda，QP这几个参数
     {
       Int estQP        = pcSlice->getSliceQp();
       Double estLambda = -1.0;
@@ -852,7 +852,7 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
         else
         {
           estLambda = m_pcRateCtrl->getRCPic()->getLCUEstLambda( bpp );
-          estQP     = m_pcRateCtrl->getRCPic()->getLCUEstQP    ( estLambda, pcSlice->getSliceQp() );
+          estQP     = m_pcRateCtrl->getRCPic()->getLCUEstQP    ( estLambda, pcSlice->getSliceQp() ); //每个LCU的QP设定后转到此处
         }
 
         estQP     = Clip3( -pcSlice->getSPS()->getQpBDOffset(CHANNEL_TYPE_LUMA), MAX_QP, estQP );
@@ -869,7 +869,7 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
 #endif
       }
 
-      m_pcRateCtrl->setRCQP( estQP );
+      m_pcRateCtrl->setRCQP( estQP ); //保存LCU的QP参数
 #if ADAPTIVE_QP_SELECTION
       pCtu->getSlice()->setSliceQpBase( estQP );
 #endif

@@ -266,9 +266,9 @@ Void TEncRCSeq::initLCUPara( TRCParameter** LCUPara )
   }
 }
 
-Void TEncRCSeq::updateAfterPic ( Int bits )
+Void TEncRCSeq::updateAfterPic( Int bits )
 {
-  m_bitsLeft -= bits;
+  m_bitsLeft -= bits;//更新GOP中剩余比特数
   m_framesLeft--;
 }
 
@@ -302,9 +302,9 @@ TEncRCGOP::~TEncRCGOP()
 Void TEncRCGOP::create( TEncRCSeq* encRCSeq, Int numPic )
 {
   destroy();
-  Int targetBits = xEstGOPTargetBits( encRCSeq, numPic );
+  Int targetBits = xEstGOPTargetBits( encRCSeq, numPic ); //计算每个GOP分配的比特数
 
-  if ( encRCSeq->getAdaptiveBits() > 0 && encRCSeq->getLastLambda() > 0.1 )
+  if ( encRCSeq->getAdaptiveBits() > 0 && encRCSeq->getLastLambda() > 0.1 ) //一般不进入此if判断，除非开启adaptiveBits
   {
     Double targetBpp = (Double)targetBits / encRCSeq->getNumPixel();
     Double basicLambda = 0.0;
@@ -370,12 +370,12 @@ Void TEncRCGOP::create( TEncRCSeq* encRCSeq, Int numPic )
   Int currPicRatio = 0;
   for ( i=0; i<numPic; i++ )
   {
-    totalPicRatio += encRCSeq->getBitRatio( i );
+    totalPicRatio += encRCSeq->getBitRatio( i ); //统计每一帧的权重之和
   }
   for ( i=0; i<numPic; i++ )
   {
     currPicRatio = encRCSeq->getBitRatio( i );
-    m_picTargetBitInGOP[i] = (Int)( ((Double)targetBits) * currPicRatio / totalPicRatio );
+    m_picTargetBitInGOP[i] = (Int)( ((Double)targetBits) * currPicRatio / totalPicRatio ); //运用每一帧的权重分配对应比特数
   }
 
   m_encRCSeq    = encRCSeq;
@@ -449,6 +449,7 @@ Void TEncRCGOP::updateAfterPicture( Int bitsCost )
 
 Int TEncRCGOP::xEstGOPTargetBits( TEncRCSeq* encRCSeq, Int GOPSize )
 {
+  //这里用到了滑动窗口g_RCSmoothWindowSize的概念，realInfluencePicture取滑动窗口40与编码剩余比特数的较小值，以精确计算GOP应得的targetBits，具体算法见JCTVC-0103中的（7）
   Int realInfluencePicture = min( g_RCSmoothWindowSize, encRCSeq->getFramesLeft() );
   Int averageTargetBitsPerPic = (Int)( encRCSeq->getTargetBits() / encRCSeq->getTotalFrames() );
   Int currentTargetBitsPerPic = (Int)( ( encRCSeq->getBitsLeft() - averageTargetBitsPerPic * (encRCSeq->getFramesLeft() - realInfluencePicture) ) / realInfluencePicture );
@@ -506,14 +507,14 @@ Int TEncRCPic::xEstPicTargetBits( TEncRCSeq* encRCSeq, TEncRCGOP* encRCGOP )
     totalPicRatio += encRCSeq->getBitRatio( i );
   }
 
-  targetBits  = Int( ((Double)GOPbitsLeft) * currPicRatio / totalPicRatio );
+  targetBits  = Int( ((Double)GOPbitsLeft) * currPicRatio / totalPicRatio ); //给GOP分配的比特数乘上当前帧所占的权重，得到对应比特数，即JCTVC-0103（9）
 
   if ( targetBits < 100 )
   {
     targetBits = 100;   // at least allocate 100 bits for one picture
   }
 
-  if ( m_encRCSeq->getFramesLeft() > 16 )
+  if ( m_encRCSeq->getFramesLeft() > 16 ) //对targetBits进行微调，对应的算法暂未找到
   {
     targetBits = Int( g_RCWeightPicRargetBitInBuffer * targetBits + g_RCWeightPicTargetBitInGOP * m_encRCGOP->getTargetBitInGOP( currPicPosition ) );
   }
@@ -632,7 +633,7 @@ Void TEncRCPic::create( TEncRCSeq* encRCSeq, TEncRCGOP* encRCGOP, Int frameLevel
   m_LCUs           = new TRCLCU[m_numberOfLCU];
   Int i, j;
   Int LCUIdx;
-  for ( i=0; i<picWidthInLCU; i++ )
+  for ( i=0; i<picWidthInLCU; i++ )//每个LCU的参数进行初始化
   {
     for ( j=0; j<picHeightInLCU; j++ )
     {
@@ -664,7 +665,12 @@ Void TEncRCPic::destroy()
   m_encRCGOP = NULL;
 }
 
-
+/*
+* QP计算
+* 计算出GOP，frame，LCU的比特之后，为了进行编码，需要传递QP值给编码器。计算出来的QP会直接影响编码器给每一帧（LCU）分配的比特数，
+* 因此QP计算变得尤为重要，不同于以往的H.264中的R-Q模型，H.265中采取R-lambda，lambda-QP两步计算QP值，以提高精确性。
+* 原文：https://blog.csdn.net/s1314_jhc/article/details/78131357
+*/
 Double TEncRCPic::estimatePicLambda( list<TEncRCPic*>& listPreviousPictures, SliceType eSliceType)
 {
   Double alpha         = m_encRCSeq->getPicPara( m_frameLevel ).m_alpha;
@@ -677,7 +683,7 @@ Double TEncRCPic::estimatePicLambda( list<TEncRCPic*>& listPreviousPictures, Sli
   }
   else
   {
-    estLambda = alpha * pow( bpp, beta );
+    estLambda = alpha * pow( bpp, beta );  //即JCTVC-K0103 (10)，用alpha，beta计算lambda
   }
 
   Double lastLevelLambda = -1.0;
@@ -698,7 +704,7 @@ Double TEncRCPic::estimatePicLambda( list<TEncRCPic*>& listPreviousPictures, Sli
     }
   }
 
-  if ( lastLevelLambda > 0.0 )
+  if ( lastLevelLambda > 0.0 ) //对当前帧的lambda进行限定，与前一帧、前一个层的lambda差值不能超过这个范围，JCTVC-K0103 的3.2部分
   {
     lastLevelLambda = Clip3( 0.1, 10000.0, lastLevelLambda );
     estLambda = Clip3( lastLevelLambda * pow( 2.0, -3.0/3.0 ), lastLevelLambda * pow( 2.0, 3.0/3.0 ), estLambda );
@@ -761,7 +767,7 @@ Double TEncRCPic::estimatePicLambda( list<TEncRCPic*>& listPreviousPictures, Sli
 
 Int TEncRCPic::estimatePicQP( Double lambda, list<TEncRCPic*>& listPreviousPictures )
 {
-  Int QP = Int( 4.2005 * log( lambda ) + 13.7122 + 0.5 );
+  Int QP = Int( 4.2005 * log( lambda ) + 13.7122 + 0.5 ); //经典的lambda-QP模型
 
   Int lastLevelQP = g_RCInvalidQPValue;
   Int lastPicQP   = g_RCInvalidQPValue;
@@ -780,7 +786,7 @@ Int TEncRCPic::estimatePicQP( Double lambda, list<TEncRCPic*>& listPreviousPictu
     }
   }
 
-  if ( lastLevelQP > g_RCInvalidQPValue )
+  if ( lastLevelQP > g_RCInvalidQPValue ) //与lambda相同，对QP进行限定
   {
     QP = Clip3( lastLevelQP - 3, lastLevelQP + 3, QP );
   }
@@ -799,17 +805,17 @@ Int TEncRCPic::estimatePicQP( Double lambda, list<TEncRCPic*>& listPreviousPictu
 
 Double TEncRCPic::getLCUTargetBpp(SliceType eSliceType)
 {
-  Int   LCUIdx    = getLCUCoded();
+  Int   LCUIdx    = getLCUCoded();//当前LCU的序号
   Double bpp      = -1.0;
   Int avgBits     = 0;
 
   if (eSliceType == I_SLICE)
   {
     Int noOfLCUsLeft = m_numberOfLCU - LCUIdx + 1;
-    Int bitrateWindow = min(4,noOfLCUsLeft);
-    Double MAD      = getLCU(LCUIdx).m_costIntra;
+    Int bitrateWindow = min(4,noOfLCUsLeft); //类似于之前的滑动窗口
+    Double MAD      = getLCU(LCUIdx).m_costIntra;//计算出每个LCU对应的MAD值
 
-    if (m_remainingCostIntra > 0.1 )
+    if (m_remainingCostIntra > 0.1 ) //m_remainingCostIntra为当前帧的总MAD
     {
       Double weightedBitsLeft = (m_bitsLeft*bitrateWindow+(m_bitsLeft-getLCU(LCUIdx).m_targetBitsLeft)*noOfLCUsLeft)/(Double)bitrateWindow;
       avgBits = Int( MAD*weightedBitsLeft/m_remainingCostIntra );
@@ -818,7 +824,7 @@ Double TEncRCPic::getLCUTargetBpp(SliceType eSliceType)
     {
       avgBits = Int( m_bitsLeft / m_LCULeft );
     }
-    m_remainingCostIntra -= MAD;
+    m_remainingCostIntra -= MAD; //分配完一个LCU比特后，更新剩余的m_remainingCostIntra
   }
   else
   {
@@ -836,7 +842,7 @@ Double TEncRCPic::getLCUTargetBpp(SliceType eSliceType)
     avgBits = 1;
   }
 
-  bpp = ( Double )avgBits/( Double )m_LCUs[ LCUIdx ].m_numberOfPixel;
+  bpp = ( Double )avgBits/( Double )m_LCUs[ LCUIdx ].m_numberOfPixel; //求出的比特数转化为bpp（bits per pixel）计算
   m_LCUs[ LCUIdx ].m_targetBits = avgBits;
 
   return bpp;
@@ -928,7 +934,7 @@ Void TEncRCPic::updateAfterCTU( Int LCUIdx, Int bits, Int QP, Double lambda, Boo
   m_LCUs[LCUIdx].m_lambda     = lambda;
 
   m_LCULeft--;
-  m_bitsLeft   -= bits;
+  m_bitsLeft   -= bits; //frame中剩余比特数的更新
   m_pixelsLeft -= m_LCUs[LCUIdx].m_numberOfPixel;
 
   if ( !updateLCUParameter )
@@ -967,7 +973,7 @@ Void TEncRCPic::updateAfterCTU( Int LCUIdx, Int bits, Int QP, Double lambda, Boo
   }
 
   calLambda = Clip3( inputLambda / 10.0, inputLambda * 10.0, calLambda );
-  alpha += m_encRCSeq->getAlphaUpdate() * ( log( inputLambda ) - log( calLambda ) ) * alpha;
+  alpha += m_encRCSeq->getAlphaUpdate() * ( log( inputLambda ) - log( calLambda ) ) * alpha; //与frame类似，进行alpha、beta的更新
   Double lnbpp = log( bpp );
   lnbpp = Clip3( -5.0, -0.1, lnbpp );
   beta  += m_encRCSeq->getBetaUpdate() * ( log( inputLambda ) - log( calLambda ) ) * lnbpp;
@@ -1083,7 +1089,7 @@ Void TEncRCPic::updateAfterPicture( Int actualHeaderBits, Int actualTotalBits, D
     }
 
     calLambda = Clip3( inputLambda / 10.0, inputLambda * 10.0, calLambda );
-    alpha += m_encRCSeq->getAlphaUpdate() * ( log( inputLambda ) - log( calLambda ) ) * alpha;
+    alpha += m_encRCSeq->getAlphaUpdate() * ( log( inputLambda ) - log( calLambda ) ) * alpha; //alpha、beta的更新依据JCTVC-K0103的（11-13）
     Double lnbpp = log( picActualBpp );
     lnbpp = Clip3( -5.0, -0.1, lnbpp );
 
@@ -1232,7 +1238,7 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
 {
   destroy();
 
-  Bool isLowdelay = true;
+  Bool isLowdelay = true; //lowdelay 的标志
   for ( Int i=0; i<GOPSize-1; i++ )
   {
     if ( GOPList[i].m_POC > GOPList[i+1].m_POC )
@@ -1257,7 +1263,7 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
 
 
   Int* bitsRatio;
-  bitsRatio = new Int[ GOPSize ];
+  bitsRatio = new Int[ GOPSize ]; //初始化每一帧的权重
   for ( Int i=0; i<GOPSize; i++ )
   {
     bitsRatio[i] = 10;
@@ -1267,10 +1273,11 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
     }
   }
 
-  if ( keepHierBits > 0 )
+  if ( keepHierBits > 0 ) //如果采用分层编码，则每一帧的权重不同，这里的权重即为每一帧获得比特数的比例
   {
+    //判断当前带宽（Bitrate）分配到每一帧的每一个像素点上的比特数，即bit per pixel,根据bpp调整权重策略
     Double bpp = (Double)( targetBitrate / (Double)( frameRate*picWidth*picHeight ) );
-    if ( GOPSize == 4 && isLowdelay )
+    if ( GOPSize == 4 && isLowdelay ) //Lowdelay下每一帧权重
     {
       if ( bpp > 0.2 )
       {
@@ -1306,7 +1313,7 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
         adaptiveBit = 1;
       }
     }
-    else if ( GOPSize == 8 && !isLowdelay )
+    else if ( GOPSize == 8 && !isLowdelay ) //Random Access下每一帧权重
     {
       if ( bpp > 0.2 )
       {
@@ -1363,7 +1370,11 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
       printf( "\n hierarchical bit allocation is not support for the specified coding structure currently.\n" );
     }
   }
-
+  //GOPID2Level: 金字塔参考类型
+  // layer3    1   3 | 5   7
+  // layer2      2   |   6
+  // layer1          4
+  // layer0  0-------|-------8
   Int* GOPID2Level = new Int[ GOPSize ];
   for ( Int i=0; i<GOPSize; i++ )
   {
@@ -1408,7 +1419,7 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
     GOPID2Level[7] = 4;
   }
 
-  m_encRCSeq = new TEncRCSeq;
+  m_encRCSeq = new TEncRCSeq; //将计算后得到的各项数据传入码率控制的初始化函数（TEncRateCtrl.cpp）之中
   m_encRCSeq->create( totalFrames, targetBitrate, frameRate, GOPSize, picWidth, picHeight, LCUWidth, LCUHeight, numberOfLevel, useLCUSeparateModel, adaptiveBit );
   m_encRCSeq->initBitsRatio( bitsRatio );
   m_encRCSeq->initGOPID2Level( GOPID2Level );
@@ -1429,7 +1440,7 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
 Void TEncRateCtrl::initRCPic( Int frameLevel )
 {
   m_encRCPic = new TEncRCPic;
-  m_encRCPic->create( m_encRCSeq, m_encRCGOP, frameLevel, m_listRCPictures );
+  m_encRCPic->create( m_encRCSeq, m_encRCGOP, frameLevel, m_listRCPictures ); //核心
 }
 
 Void TEncRateCtrl::initRCGOP( Int numberOfPictures )
