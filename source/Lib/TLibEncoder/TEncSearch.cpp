@@ -312,22 +312,22 @@ __inline Void TEncSearch::xTZSearchHelp( const TComPattern* const pcPatternKey, 
 {
   Distortion  uiSad = 0;
 
-  const Pel* const  piRefSrch = rcStruct.piRefY + iSearchY * rcStruct.iYStride + iSearchX;
+  const Pel* const  piRefSrch = rcStruct.piRefY + iSearchY * rcStruct.iYStride + iSearchX; //参考图像Y分量的起始地址
 
   //-- jclee for using the SAD function pointer
-  m_pcRdCost->setDistParam( pcPatternKey, piRefSrch, rcStruct.iYStride,  m_cDistParam );
+  m_pcRdCost->setDistParam( pcPatternKey, piRefSrch, rcStruct.iYStride,  m_cDistParam );  //设置率失真函数
 
-  setDistParamComp(COMPONENT_Y);
+  setDistParamComp(COMPONENT_Y);//失真函数标记Y分量
 
   // distortion
-  m_cDistParam.bitDepth = pcPatternKey->getBitDepthY();
-  m_cDistParam.m_maximumDistortionForEarlyExit = rcStruct.uiBestSad;
+  m_cDistParam.bitDepth = pcPatternKey->getBitDepthY(); //bit深度
+  m_cDistParam.m_maximumDistortionForEarlyExit = rcStruct.uiBestSad; //记录最佳的sad
 
   if((m_pcEncCfg->getRestrictMESampling() == false) && m_pcEncCfg->getMotionEstimationSearchMethod() == MESEARCH_SELECTIVE)
   {
     Int isubShift = 0;
     // motion cost
-    Distortion uiBitCost = m_pcRdCost->getCostOfVectorWithPredictor( iSearchX, iSearchY );
+    Distortion uiBitCost = m_pcRdCost->getCostOfVectorWithPredictor( iSearchX, iSearchY );//mv的cost
 
     // Skip search if bit cost is already larger than best SAD
     if (uiBitCost < rcStruct.uiBestSad)
@@ -4044,7 +4044,10 @@ Void TEncSearch::xPatternSearchFast( const TComDataCU* const  pcCU,
   }
 }
 
-
+/*
+* bExtendedSettings: false---MESEARCH_DIAMOND; true---MESEARCH_DIAMOND_ENHANCED
+* pIntegerMv2Nx2NPred：m_integerMv2Nx2N---存储2Nx2N的最佳mv，非2Nx2N会用到
+*/
 Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
                             const TComPattern* const pcPatternKey,
                             const Pel* const         piRefY,
@@ -4056,27 +4059,27 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
                             const TComMv* const      pIntegerMv2Nx2NPred,
                             const Bool               bExtendedSettings)
 {
-  const Bool bUseAdaptiveRaster                      = bExtendedSettings;
-  const Int  iRaster                                 = 5;
-  const Bool bTestOtherPredictedMV                   = bExtendedSettings;
-  const Bool bTestZeroVector                         = true;
-  const Bool bTestZeroVectorStart                    = bExtendedSettings;
-  const Bool bTestZeroVectorStop                     = false;
+  const Bool bUseAdaptiveRaster                      = bExtendedSettings;//相关的开关初始化
+  const Int  iRaster                                 = 5;                //栅格搜索的步长
+  const Bool bTestOtherPredictedMV                   = bExtendedSettings;//是否test其他pmv，MESEARCH_DIAMOND_ENHANCED时为true
+  const Bool bTestZeroVector                         = true;             //是否检查zero mv，默认为true
+  const Bool bTestZeroVectorStart                    = bExtendedSettings;//是否检查zero mv，MESEARCH_DIAMOND_ENHANCED时为true
+  const Bool bTestZeroVectorStop                     = false;            //是否提前结束zero mv为起点的搜索，默认为false
   const Bool bFirstSearchDiamond                     = true;  // 1 = xTZ8PointDiamondSearch   0 = xTZ8PointSquareSearch
   const Bool bFirstCornersForDiamondDist1            = bExtendedSettings;
-  const Bool bFirstSearchStop                        = m_pcEncCfg->getFastMEAssumingSmootherMVEnabled();
+  const Bool bFirstSearchStop                        = m_pcEncCfg->getFastMEAssumingSmootherMVEnabled();//根据配置参数判断是否有搜索终止算法，默认true
   const UInt uiFirstSearchRounds                     = 3;     // first search stop X rounds after best match (must be >=1)
-  const Bool bEnableRasterSearch                     = true;
-  const Bool bAlwaysRasterSearch                     = bExtendedSettings;  // true: BETTER but factor 2 slower
+  const Bool bEnableRasterSearch                     = true;               //默认为true，在栅格搜索中使用
+  const Bool bAlwaysRasterSearch                     = bExtendedSettings;  // true: BETTER but factor 2 slower //MESEARCH_DIAMOND_ENHANCED时为true
   const Bool bRasterRefinementEnable                 = false; // enable either raster refinement or star refinement
   const Bool bRasterRefinementDiamond                = false; // 1 = xTZ8PointDiamondSearch   0 = xTZ8PointSquareSearch
   const Bool bRasterRefinementCornersForDiamondDist1 = bExtendedSettings;
-  const Bool bStarRefinementEnable                   = true;  // enable either star refinement or raster refinement
+  const Bool bStarRefinementEnable                   = true;  // enable either star refinement or raster refinement //精细化的钻石搜索
   const Bool bStarRefinementDiamond                  = true;  // 1 = xTZ8PointDiamondSearch   0 = xTZ8PointSquareSearch
   const Bool bStarRefinementCornersForDiamondDist1   = bExtendedSettings;
   const Bool bStarRefinementStop                     = false;
   const UInt uiStarRefinementRounds                  = 2;  // star refinement stop X rounds after best match (must be >=1)
-  const Bool bNewZeroNeighbourhoodTest               = bExtendedSettings;
+  const Bool bNewZeroNeighbourhoodTest               = bExtendedSettings; //MESEARCH_DIAMOND_ENHANCED时为true
 
   UInt uiSearchRange = m_iSearchRange;
   pcCU->clipMv( rcMv );
@@ -4086,16 +4089,16 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
   rcMv >>= 2;
 #endif
   // init TZSearchStruct
-  IntTZSearchStruct cStruct;
-  cStruct.iYStride    = iRefStride;
+  IntTZSearchStruct cStruct;//初始化临时变量cStruct，存储最佳搜索点
+  cStruct.iYStride    = iRefStride;//初始化
   cStruct.piRefY      = piRefY;
-  cStruct.uiBestSad   = MAX_UINT;
+  cStruct.uiBestSad   = MAX_UINT;// 
 
   // set rcMv (Median predictor) as start point and as best point
-  xTZSearchHelp( pcPatternKey, cStruct, rcMv.getHor(), rcMv.getVer(), 0, 0 );
+  xTZSearchHelp( pcPatternKey, cStruct, rcMv.getHor(), rcMv.getVer(), 0, 0 );//搜索起始点，选择中点rcMv作为起始点
 
   // test whether one of PRED_A, PRED_B, PRED_C MV is better start point than Median predictor
-  if ( bTestOtherPredictedMV )
+  if ( bTestOtherPredictedMV )//选择是否需要test pmv，从rcMv和ABC中选择最佳的点作为起始搜索点：起始搜索点是否需要优化——扩大搜索范围来确定最优点？
   {
     for ( UInt index = 0; index < NUM_MV_PREDICTORS; index++ )
     {
@@ -4106,7 +4109,7 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
 #else
       cMv >>= 2;
 #endif
-      if (cMv != rcMv && (cMv.getHor() != cStruct.iBestX && cMv.getVer() != cStruct.iBestY))
+      if (cMv != rcMv && (cMv.getHor() != cStruct.iBestX && cMv.getVer() != cStruct.iBestY))//预测点不是中值点且不在当前起始点的x/y方向上
       {
         // only test cMV if not obviously previously tested.
         xTZSearchHelp( pcPatternKey, cStruct, cMv.getHor(), cMv.getVer(), 0, 0 );
@@ -4115,22 +4118,22 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
   }
 
   // test whether zero Mv is better start point than Median predictor
-  if ( bTestZeroVector )
+  if ( bTestZeroVector )//检查 zero Mv是否更优
   {
     if ((rcMv.getHor() != 0 || rcMv.getVer() != 0) &&
-        (0 != cStruct.iBestX || 0 != cStruct.iBestY))
+        (0 != cStruct.iBestX || 0 != cStruct.iBestY)) //如果中值点或最优点与00点在x/y方向上，则跳过zero点的检查
     {
       // only test 0-vector if not obviously previously tested.
       xTZSearchHelp( pcPatternKey, cStruct, 0, 0, 0, 0 );
     }
   }
 
-  Int   iSrchRngHorLeft   = pcMvSrchRngLT->getHor();
+  Int   iSrchRngHorLeft   = pcMvSrchRngLT->getHor(); //搜索范围
   Int   iSrchRngHorRight  = pcMvSrchRngRB->getHor();
   Int   iSrchRngVerTop    = pcMvSrchRngLT->getVer();
   Int   iSrchRngVerBottom = pcMvSrchRngRB->getVer();
 
-  if (pIntegerMv2Nx2NPred != 0)
+  if (pIntegerMv2Nx2NPred != 0)//如果当前不是2Nx2N，则可以利用2Nx2N PU的mv预测结果
   {
     TComMv integerMv2Nx2NPred = *pIntegerMv2Nx2NPred;
     integerMv2Nx2NPred <<= 2;
@@ -4141,7 +4144,7 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
     integerMv2Nx2NPred >>= 2;
 #endif
     if ((rcMv != integerMv2Nx2NPred) &&
-        (integerMv2Nx2NPred.getHor() != cStruct.iBestX || integerMv2Nx2NPred.getVer() != cStruct.iBestY))
+        (integerMv2Nx2NPred.getHor() != cStruct.iBestX || integerMv2Nx2NPred.getVer() != cStruct.iBestY))//每次都需要判断：当前搜索点是否与最优点在x/y方向上
     {
       // only test integerMv2Nx2NPred if not obviously previously tested.
       xTZSearchHelp(pcPatternKey, cStruct, integerMv2Nx2NPred.getHor(), integerMv2Nx2NPred.getVer(), 0, 0);
@@ -4154,7 +4157,7 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
     TComMv currBestMv(cStruct.iBestX, cStruct.iBestY );
     currBestMv <<= 2;
 #if MCTS_ENC_CHECK
-    xSetSearchRange(pcCU, currBestMv, iSrchRng, cMvSrchRngLT, cMvSrchRngRB, pcPatternKey);
+    xSetSearchRange(pcCU, currBestMv, iSrchRng, cMvSrchRngLT, cMvSrchRngRB, pcPatternKey);//基于currBestMv更新搜索范围
 #else
     xSetSearchRange(pcCU, currBestMv, iSrchRng, cMvSrchRngLT, cMvSrchRngRB);
 #endif
@@ -4169,13 +4172,13 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
   Int  iStartX = cStruct.iBestX;
   Int  iStartY = cStruct.iBestY;
 
-  const Bool bBestCandidateZero = (cStruct.iBestX == 0) && (cStruct.iBestY == 0);
+  const Bool bBestCandidateZero = (cStruct.iBestX == 0) && (cStruct.iBestY == 0);//搜索起始点是否为(0, 0)点
 
   // first search around best position up to now.
   // The following works as a "subsampled/log" window search around the best candidate
-  for ( iDist = 1; iDist <= (Int)uiSearchRange; iDist*=2 )
+  for ( iDist = 1; iDist <= (Int)uiSearchRange; iDist*=2 )//第一次搜索，搜索半径以2的幂次递增
   {
-    if ( bFirstSearchDiamond == 1 )
+    if ( bFirstSearchDiamond == 1 )//默认使用8点钻石搜索模板
     {
       xTZ8PointDiamondSearch ( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, iStartX, iStartY, iDist, bFirstCornersForDiamondDist1 );
     }
@@ -4184,25 +4187,25 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
       xTZ8PointSquareSearch  ( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, iStartX, iStartY, iDist );
     }
 
-    if ( bFirstSearchStop && ( cStruct.uiBestRound >= uiFirstSearchRounds ) ) // stop criterion
+    if ( bFirstSearchStop && ( cStruct.uiBestRound >= uiFirstSearchRounds ) ) // stop criterion //如果最优点连续三次循环都是最优的，跳出循环
     {
       break;
     }
   }
 
-  if (!bNewZeroNeighbourhoodTest)
+  if (!bNewZeroNeighbourhoodTest)//检测zero Mv, MESEARCH_DIAMOND_ENHANCED时为true
   {
     // test whether zero Mv is a better start point than Median predictor
-    if ( bTestZeroVectorStart && ((cStruct.iBestX != 0) || (cStruct.iBestY != 0)) )
+    if ( bTestZeroVectorStart && ((cStruct.iBestX != 0) || (cStruct.iBestY != 0)) )//MESEARCH_DIAMOND_ENHANCED时为true, 同样要求与最优点不在x/y方向上
     {
-      xTZSearchHelp( pcPatternKey, cStruct, 0, 0, 0, 0 );
-      if ( (cStruct.iBestX == 0) && (cStruct.iBestY == 0) )
+      xTZSearchHelp( pcPatternKey, cStruct, 0, 0, 0, 0 );//检查zero Mv
+      if ( (cStruct.iBestX == 0) && (cStruct.iBestY == 0) )//如果最优点时zero Mv
       {
         // test its neighborhood
-        for ( iDist = 1; iDist <= (Int)uiSearchRange; iDist*=2 )
+        for ( iDist = 1; iDist <= (Int)uiSearchRange; iDist*=2 )//同上，递归使用8点钻石搜索，连续两次命中某点时结束
         {
           xTZ8PointDiamondSearch( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, 0, 0, iDist, false );
-          if ( bTestZeroVectorStop && (cStruct.uiBestRound > 0) ) // stop criterion
+          if ( bTestZeroVectorStop && (cStruct.uiBestRound > 0) ) // stop criterion //连续两次命中某点时结束搜索
           {
             break;
           }
@@ -4216,12 +4219,12 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
     // It was reported that the original (above) search scheme using bTestZeroVectorStart did not
     // make sense since one would have already checked the zero candidate earlier
     // and thus the conditions for that test would have not been satisfied
-    if (bTestZeroVectorStart == true && bBestCandidateZero != true)
+    if (bTestZeroVectorStart == true && bBestCandidateZero != true) //搜索起始点不为(0, 0)点, bBestCandidateZero=false
     {
       for ( iDist = 1; iDist <= ((Int)uiSearchRange >> 1); iDist*=2 )
       {
         xTZ8PointDiamondSearch( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, 0, 0, iDist, false );
-        if ( bTestZeroVectorStop && (cStruct.uiBestRound > 2) ) // stop criterion
+        if ( bTestZeroVectorStop && (cStruct.uiBestRound > 2) ) // stop criterion //连续命中3次时结束
         {
           break;
         }
@@ -4230,31 +4233,31 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
   }
 
   // calculate only 2 missing points instead 8 points if cStruct.uiBestDistance == 1
-  if ( cStruct.uiBestDistance == 1 )
+  if ( cStruct.uiBestDistance == 1 )//如果最优点的搜索半径为1, 则检查最优点附近未检查的2个点
   {
-    cStruct.uiBestDistance = 0;
-    xTZ2PointSearch( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB );
+    cStruct.uiBestDistance = 0;//将最优搜索半径置零
+    xTZ2PointSearch( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB );//根据8种情况，检查两个点
   }
 
   // raster search if distance is too big
-  if (bUseAdaptiveRaster)
+  if (bUseAdaptiveRaster)//自适应调整栅格搜索的范围：MESEARCH_DIAMOND_ENHANCED模式时开启
   {
-    Int   iWindowSize = iRaster;
-    Int   iSrchRngRasterLeft   = iSrchRngHorLeft;
+    Int   iWindowSize = iRaster;//栅格搜索窗的大小设定为步长大小，默认为5
+    Int   iSrchRngRasterLeft   = iSrchRngHorLeft;//上下左右的搜索范围
     Int   iSrchRngRasterRight  = iSrchRngHorRight;
     Int   iSrchRngRasterTop    = iSrchRngVerTop;
     Int   iSrchRngRasterBottom = iSrchRngVerBottom;
 
-    if (!(bEnableRasterSearch && ( ((Int)(cStruct.uiBestDistance) > iRaster))))
+    if (!(bEnableRasterSearch && ( ((Int)(cStruct.uiBestDistance) > iRaster))))//bEnableRasterSearch默认true，即：仅当uiBestDistance<=5时执行
     {
-      iWindowSize ++;
+      iWindowSize ++;//搜索窗size+1， 搜索范围缩小为原来的1/4
       iSrchRngRasterLeft /= 2;
       iSrchRngRasterRight /= 2;
       iSrchRngRasterTop /= 2;
       iSrchRngRasterBottom /= 2;
     }
-    cStruct.uiBestDistance = iWindowSize;
-    for ( iStartY = iSrchRngRasterTop; iStartY <= iSrchRngRasterBottom; iStartY += iWindowSize )
+    cStruct.uiBestDistance = iWindowSize;//更新最佳搜索距离为搜索窗大小
+    for ( iStartY = iSrchRngRasterTop; iStartY <= iSrchRngRasterBottom; iStartY += iWindowSize )//以iWindowSize为步长，做栅格搜索
     {
       for ( iStartX = iSrchRngRasterLeft; iStartX <= iSrchRngRasterRight; iStartX += iWindowSize )
       {
@@ -4262,33 +4265,33 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
       }
     }
   }
-  else
+  else//MESEARCH_DIAMOND模式：bAlwaysRasterSearch=false
   {
-    if ( bEnableRasterSearch && ( ((Int)(cStruct.uiBestDistance) > iRaster) || bAlwaysRasterSearch ) )
+    if ( bEnableRasterSearch && ( ((Int)(cStruct.uiBestDistance) > iRaster) || bAlwaysRasterSearch ) )//uiBestDistance>5时执行，或者MESEARCH_DIAMOND_ENHANCED
     {
-      cStruct.uiBestDistance = iRaster;
+      cStruct.uiBestDistance = iRaster;//更新uiBestDistance为5
       for ( iStartY = iSrchRngVerTop; iStartY <= iSrchRngVerBottom; iStartY += iRaster )
       {
         for ( iStartX = iSrchRngHorLeft; iStartX <= iSrchRngHorRight; iStartX += iRaster )
         {
-          xTZSearchHelp( pcPatternKey, cStruct, iStartX, iStartY, 0, iRaster );
+          xTZSearchHelp( pcPatternKey, cStruct, iStartX, iStartY, 0, iRaster );//逐行搜索，类似full search
         }
       }
     }
   }
 
-  // raster refinement
+  // raster refinement //精细化的栅格搜索
 
-  if ( bRasterRefinementEnable && cStruct.uiBestDistance > 0 )
+  if ( bRasterRefinementEnable && cStruct.uiBestDistance > 0 )//bRasterRefinementEnable 默认为false，最佳搜索半径>0时触发
   {
     while ( cStruct.uiBestDistance > 0 )
     {
       iStartX = cStruct.iBestX;
       iStartY = cStruct.iBestY;
-      if ( cStruct.uiBestDistance > 1 )
+      if ( cStruct.uiBestDistance > 1 )//最佳搜索半径>1时
       {
-        iDist = cStruct.uiBestDistance >>= 1;
-        if ( bRasterRefinementDiamond == 1 )
+        iDist = cStruct.uiBestDistance >>= 1;//半径/2
+        if ( bRasterRefinementDiamond == 1 )//bRasterRefinementDiamond默认为0，使用方形搜索
         {
           xTZ8PointDiamondSearch ( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, iStartX, iStartY, iDist, bRasterRefinementCornersForDiamondDist1 );
         }
@@ -4299,7 +4302,7 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
       }
 
       // calculate only 2 missing points instead 8 points if cStruct.uiBestDistance == 1
-      if ( cStruct.uiBestDistance == 1 )
+      if ( cStruct.uiBestDistance == 1 )//最佳搜索半径为1时，检查两个点
       {
         cStruct.uiBestDistance = 0;
         if ( cStruct.ucPointNr != 0 )
@@ -4311,7 +4314,7 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
   }
 
   // star refinement
-  if ( bStarRefinementEnable && cStruct.uiBestDistance > 0 )
+  if ( bStarRefinementEnable && cStruct.uiBestDistance > 0 )//bStarRefinementEnable=true, 当搜索半径>0时触发
   {
     while ( cStruct.uiBestDistance > 0 )
     {
@@ -4321,7 +4324,7 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
       cStruct.ucPointNr = 0;
       for ( iDist = 1; iDist < (Int)uiSearchRange + 1; iDist*=2 )
       {
-        if ( bStarRefinementDiamond == 1 )
+        if ( bStarRefinementDiamond == 1 )//bStarRefinementDiamond默认为1，使用8点钻石搜索
         {
           xTZ8PointDiamondSearch ( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, iStartX, iStartY, iDist, bStarRefinementCornersForDiamondDist1 );
         }
@@ -4329,14 +4332,14 @@ Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
         {
           xTZ8PointSquareSearch  ( pcPatternKey, cStruct, pcMvSrchRngLT, pcMvSrchRngRB, iStartX, iStartY, iDist );
         }
-        if ( bStarRefinementStop && (cStruct.uiBestRound >= uiStarRefinementRounds) ) // stop criterion
+        if ( bStarRefinementStop && (cStruct.uiBestRound >= uiStarRefinementRounds) ) // stop criterion //连续命中两次结束搜索
         {
           break;
         }
       }
 
       // calculate only 2 missing points instead 8 points if cStrukt.uiBestDistance == 1
-      if ( cStruct.uiBestDistance == 1 )
+      if ( cStruct.uiBestDistance == 1 ) //检查最近的两个点
       {
         cStruct.uiBestDistance = 0;
         if ( cStruct.ucPointNr != 0 )
