@@ -4049,14 +4049,14 @@ Void TEncSearch::xPatternSearchFast( const TComDataCU* const  pcCU,
 * pIntegerMv2Nx2NPred：m_integerMv2Nx2N---存储2Nx2N的最佳mv，非2Nx2N会用到
 */
 Void TEncSearch::xTZSearch( const TComDataCU* const pcCU,
-                            const TComPattern* const pcPatternKey,
+                            const TComPattern* const pcPatternKey, //存储当前PU的相关信息
                             const Pel* const         piRefY,
                             const Int                iRefStride,
                             const TComMv* const      pcMvSrchRngLT,
                             const TComMv* const      pcMvSrchRngRB,
                             TComMv&                  rcMv,
                             Distortion&              ruiSAD,
-                            const TComMv* const      pIntegerMv2Nx2NPred,
+                            const TComMv* const      pIntegerMv2Nx2NPred, //m_integerMv2Nx2N---存储2Nx2N的最佳mv，非2Nx2N会用到
                             const Bool               bExtendedSettings)
 {
   const Bool bUseAdaptiveRaster                      = bExtendedSettings;//相关的开关初始化
