@@ -1559,6 +1559,17 @@ Void TEncCu::xCheckRDCostIntra( TComDataCU *&rpcBestCU,
   rpcTempCU->getTotalBins() = ((TEncBinCABAC *)((TEncSbac*)m_pcEntropyCoder->m_pcEntropyCoderIf)->getEncBinIf())->getBinsCoded();
   rpcTempCU->getTotalCost() = m_pcRdCost->calcRdCost( rpcTempCU->getTotalBits(), rpcTempCU->getTotalDistortion() );
 
+  //if (0) {
+  //    UInt temp_bits = rpcTempCU->getTotalBits();
+  //    UInt temp_dist = rpcTempCU->getTotalDistortion();
+  //    Double temp_rdcost = rpcTempCU->getTotalCost();
+  //    Double temp_lambda = m_pcRdCost->getLambda();
+  //    Double temp_rdcost_calc = temp_dist + (temp_bits * temp_lambda);
+
+  //    printf("CU=%d-%d, [%d, %d], [dist, bits, lambda, rdcost, cal_rdcost]=[%d, %d, %.4f, %.4f---%.4f]\n",
+  //        rpcTempCU->getWidth(0), rpcTempCU->getPartitionSize(0), rpcTempCU->getCUPelX(), rpcTempCU->getCUPelY(), temp_dist, temp_bits, temp_lambda, temp_rdcost, temp_rdcost_calc);
+  //}
+
   xCheckDQP( rpcTempCU );
 
   xCheckBestMode(rpcBestCU, rpcTempCU, uiDepth DEBUG_STRING_PASS_INTO(sDebug) DEBUG_STRING_PASS_INTO(sTest));

@@ -241,7 +241,7 @@ Void TComPrediction::xPredIntraAng(       Int bitDepth,
   const Bool modeDC        = dirMode==DC_IDX;
 
   // Do the DC prediction
-  if (modeDC)
+  if (modeDC)//DC 模式，均值预测
   {
     const Pel dcval = predIntraGetPredValDC(pSrc, srcStride, width, height);
 
@@ -255,7 +255,7 @@ Void TComPrediction::xPredIntraAng(       Int bitDepth,
   }
   else // Do angular predictions
   {
-    const Bool       bIsModeVer         = (dirMode >= 18);
+    const Bool       bIsModeVer         = (dirMode >= 18);//判断是否是水平方向的mode
     const Int        intraPredAngleMode = (bIsModeVer) ? (Int)dirMode - VER_IDX :  -((Int)dirMode - HOR_IDX);
     const Int        absAngMode         = abs(intraPredAngleMode);
     const Int        signAng            = intraPredAngleMode < 0 ? -1 : 1;
@@ -263,7 +263,7 @@ Void TComPrediction::xPredIntraAng(       Int bitDepth,
 
     // Set bitshifts and scale the angle parameter to block size
     static const Int angTable[9]    = {0,    2,    5,   9,  13,  17,  21,  26,  32};
-    static const Int invAngTable[9] = {0, 4096, 1638, 910, 630, 482, 390, 315, 256}; // (256 * 32) / Angle
+    static const Int invAngTable[9] = {0, 4096, 1638, 910, 630, 482, 390, 315, 256}; // (256 * 32) / Angle ---->256:与bit_depth有关？
     Int invAngle                    = invAngTable[absAngMode];
     Int absAng                      = angTable[absAngMode];
     Int intraPredAngle              = signAng * absAng;

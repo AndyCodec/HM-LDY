@@ -46,6 +46,7 @@
 #include "TLibCommon/TComSlice.h"
 #include <assert.h>
 
+//GOPEntry并不表示一个图像组，而是表示某一帧对应的GOP（即图像组）的信息，它包含了这个帧的参考帧等重要的信息
 struct GOPEntry
 {
   Int m_POC;
