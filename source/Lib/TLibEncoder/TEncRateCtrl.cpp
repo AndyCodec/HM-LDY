@@ -666,7 +666,7 @@ Void TEncRCPic::destroy()
 }
 
 /*
-* QP计算
+* 计算Lambda
 * 计算出GOP，frame，LCU的比特之后，为了进行编码，需要传递QP值给编码器。计算出来的QP会直接影响编码器给每一帧（LCU）分配的比特数，
 * 因此QP计算变得尤为重要，不同于以往的H.264中的R-Q模型，H.265中采取R-lambda，lambda-QP两步计算QP值，以提高精确性。
 * 原文：https://blog.csdn.net/s1314_jhc/article/details/78131357
@@ -683,7 +683,7 @@ Double TEncRCPic::estimatePicLambda( list<TEncRCPic*>& listPreviousPictures, Sli
   }
   else
   {
-    estLambda = alpha * pow( bpp, beta );  //即JCTVC-K0103 (10)，用alpha，beta计算lambda
+    estLambda = alpha * pow( bpp, beta );  //即JCTVC-K0103 (10)，用alpha，beta计算lambda： lambda = alpha * bpp^beta
   }
 
   Double lastLevelLambda = -1.0;
@@ -1241,7 +1241,7 @@ Void TEncRateCtrl::init( Int totalFrames, Int targetBitrate, Int frameRate, Int 
   Bool isLowdelay = true; //lowdelay 的标志
   for ( Int i=0; i<GOPSize-1; i++ )
   {
-    if ( GOPList[i].m_POC > GOPList[i+1].m_POC )
+    if ( GOPList[i].m_POC > GOPList[i+1].m_POC ) //!< 判断是否为lowdelay配置
     {
       isLowdelay = false;
       break;

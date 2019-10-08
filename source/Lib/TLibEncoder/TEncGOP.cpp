@@ -1588,14 +1588,14 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
         Int estimatedCpbFullness = m_pcRateCtrl->getCpbState() + m_pcRateCtrl->getBufferingRate();
 
         // prevent overflow
-        if (estimatedCpbFullness - estimatedBits > (Int)(m_pcRateCtrl->getCpbSize()*0.9f))
+        if (estimatedCpbFullness - estimatedBits > (Int)(m_pcRateCtrl->getCpbSize()*0.9f))//防止上溢出
         {
           estimatedBits = estimatedCpbFullness - (Int)(m_pcRateCtrl->getCpbSize()*0.9f);
         }
 
-        estimatedCpbFullness -= m_pcRateCtrl->getBufferingRate();
+        estimatedCpbFullness -= m_pcRateCtrl->getBufferingRate(); //estimatedCpbFullness = m_pcRateCtrl->getCpbState()
         // prevent underflow
-        if (estimatedCpbFullness - estimatedBits < m_pcRateCtrl->getRCPic()->getLowerBound())
+        if (estimatedCpbFullness - estimatedBits < m_pcRateCtrl->getRCPic()->getLowerBound())//防止下溢出
         {
           estimatedBits = max(200, estimatedCpbFullness - m_pcRateCtrl->getRCPic()->getLowerBound());
         }
@@ -1612,7 +1612,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
         Int    SHIFT_QP      = 12;
         Int    bitdepth_luma_qp_scale = 0;
         Double qp_temp = (Double) sliceQP + bitdepth_luma_qp_scale - SHIFT_QP;
-        lambda = dQPFactor*pow( 2.0, qp_temp/3.0 );
+        lambda = dQPFactor*pow( 2.0, qp_temp/3.0 ); //QP是给定的，直接计算出lambda
       }
       else if ( frameLevel == 0 )   // intra case, but use the model
       {
@@ -1620,10 +1620,10 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
 
         if ( m_pcCfg->getIntraPeriod() != 1 )   // do not refine allocated bits for all intra case
         {
-          Int bits = m_pcRateCtrl->getRCSeq()->getLeftAverageBits();
-          bits = m_pcRateCtrl->getRCPic()->getRefineBitsForIntra( bits );
+          Int bits = m_pcRateCtrl->getRCSeq()->getLeftAverageBits();//剩余帧的平均码率
+          bits = m_pcRateCtrl->getRCPic()->getRefineBitsForIntra( bits );//设置intra的bits
 
-          if (m_pcRateCtrl->getCpbSaturationEnabled() )
+          if (m_pcRateCtrl->getCpbSaturationEnabled() )//cpb是啥？下面检测bits的边界
           {
             Int estimatedCpbFullness = m_pcRateCtrl->getCpbState() + m_pcRateCtrl->getBufferingRate();
 
@@ -1649,7 +1649,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
         }
 
         list<TEncRCPic*> listPreviousPicture = m_pcRateCtrl->getPicList();
-        m_pcRateCtrl->getRCPic()->getLCUInitTargetBits();
+        m_pcRateCtrl->getRCPic()->getLCUInitTargetBits();//初始化LCU的目标比特
         lambda  = m_pcRateCtrl->getRCPic()->estimatePicLambda( listPreviousPicture, pcSlice->getSliceType());
         sliceQP = m_pcRateCtrl->getRCPic()->estimatePicQP( lambda, listPreviousPicture );
       }
