@@ -113,12 +113,12 @@ Void
 TEncSlice::setUpLambda(TComSlice* slice, const Double dLambda, Int iQP)
 {
   // store lambda
-  m_pcRdCost ->setLambda( dLambda, slice->getSPS()->getBitDepths() );
+  m_pcRdCost ->setLambda( dLambda, slice->getSPS()->getBitDepths() );//把lambda、qp更新到m_pcRdCost
 
   // for RDO
   // in RdCost there is only one lambda because the luma and chroma bits are not separated, instead we weight the distortion of chroma.
-  Double dLambdas[MAX_NUM_COMPONENT] = { dLambda };
-  for(UInt compIdx=1; compIdx<MAX_NUM_COMPONENT; compIdx++)
+  Double dLambdas[MAX_NUM_COMPONENT] = { dLambda };//该方法仅能初始化dLambdas[0]
+  for(UInt compIdx=1; compIdx<MAX_NUM_COMPONENT; compIdx++)//计算并存储UV分量的lambda
   {
     const ComponentID compID=ComponentID(compIdx);
     Int chromaQPOffset = slice->getPPS()->getQpOffset(compID) + slice->getSliceChromaQpDelta(compID);
@@ -158,29 +158,29 @@ TEncSlice::setUpLambda(TComSlice* slice, const Double dLambda, Int iQP)
 
 Void TEncSlice::initEncSlice( TComPic* pcPic, const Int pocLast, const Int pocCurr, const Int iGOPid, TComSlice*& rpcSlice, const Bool isField )
 {
-  Double dQP;
-  Double dLambda;
-
-  rpcSlice = pcPic->getSlice(0);
+  Double dQP;//局部变量dQP, 初始化后
+  Double dLambda;//局部变量dLambda, 初始化后存入m_pcRdCost
+  //printf("\n\n\n=====================initEncSlice=============================\n");
+  rpcSlice = pcPic->getSlice(0);//slice初始化设置
   rpcSlice->setSliceBits(0);
   rpcSlice->setPic( pcPic );
   rpcSlice->initSlice();
   rpcSlice->setPicOutputFlag( true );
-  rpcSlice->setPOC( pocCurr );
+  rpcSlice->setPOC( pocCurr );//pocCurr
   pcPic->setField(isField);
-  m_gopID = iGOPid;
+  m_gopID = iGOPid;//GOP id
 
   // depth computation based on GOP size
-  Int depth;
-  {
-    Int poc = rpcSlice->getPOC();
+  Int depth;//depth--表示当前poc在当前GOP中的hierarchy depth
+  {//根据当前poc的位置计算depth
+    Int poc = rpcSlice->getPOC();//即前面的pocCurr
     if(isField)
     {
       poc = (poc/2) % (m_pcCfg->getGOPSize()/2);
     }
     else
     {
-      poc = poc % m_pcCfg->getGOPSize();   
+      poc = poc % m_pcCfg->getGOPSize();//转换为当前GOP中的poc
     }
 
     if ( poc == 0 )
@@ -218,7 +218,7 @@ Void TEncSlice::initEncSlice( TComPic* pcPic, const Int pocLast, const Int pocCu
   // slice type
   SliceType eSliceType;
 
-  eSliceType=B_SLICE;
+  eSliceType=B_SLICE;//默认初始化为B帧
   if(!(isField && pocLast == 1) || !m_pcCfg->getEfficientFieldIRAPEnabled())
   {
     if(m_pcCfg->getDecodingRefreshType() == 3)
@@ -252,7 +252,7 @@ Void TEncSlice::initEncSlice( TComPic* pcPic, const Int pocLast, const Int pocCu
   // ------------------------------------------------------------------------------------------------------------------
 
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-  dQP = m_pcCfg->getQPForPicture(iGOPid, rpcSlice);
+  dQP = m_pcCfg->getQPForPicture(iGOPid, rpcSlice);//getQPForPicture: 根据配置文件中的参数，计算qpoffset，返回偏移后的qp
 #else
   dQP = m_pcCfg->getQP();
   if(eSliceType!=I_SLICE)
@@ -282,19 +282,19 @@ Void TEncSlice::initEncSlice( TComPic* pcPic, const Int pocLast, const Int pocCu
   // ------------------------------------------------------------------------------------------------------------------
 
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-  const Int temporalId=m_pcCfg->getGOPEntry(iGOPid).m_temporalId;
+  const Int temporalId=m_pcCfg->getGOPEntry(iGOPid).m_temporalId;//当前帧所在的时域子层的序号
 #endif
   Int iQP;
   Double dOrigQP = dQP;
 
   // pre-compute lambda and QP values for all possible QP candidates
-  for ( Int iDQpIdx = 0; iDQpIdx < 2 * m_pcCfg->getDeltaQpRD() + 1; iDQpIdx++ )
+  for ( Int iDQpIdx = 0; iDQpIdx < 2 * m_pcCfg->getDeltaQpRD() + 1; iDQpIdx++ )//一般循环一次
   {
     // compute QP value
     dQP = dOrigQP + ((iDQpIdx+1)>>1)*(iDQpIdx%2 ? -1 : 1);
-    dLambda = calculateLambda(rpcSlice, iGOPid, depth, dQP, dQP, iQP );
+    dLambda = calculateLambda(rpcSlice, iGOPid, depth, dQP, dQP, iQP ); //根据qp计算lambda
 
-    m_vdRdPicLambda[iDQpIdx] = dLambda;
+    m_vdRdPicLambda[iDQpIdx] = dLambda;//存储m_vdRdPic中
     m_vdRdPicQp    [iDQpIdx] = dQP;
     m_viRdPicQp    [iDQpIdx] = iQP;
   }
@@ -303,6 +303,9 @@ Void TEncSlice::initEncSlice( TComPic* pcPic, const Int pocLast, const Int pocCu
   dLambda = m_vdRdPicLambda[0];
   dQP     = m_vdRdPicQp    [0];
   iQP     = m_viRdPicQp    [0];
+  
+  //printf("initEncSlice: dLambda = %.2f, dQP = %.1f, iQP = %d\n", dLambda, dQP, iQP);
+  //printf("==================================================\n");
 
 #if !X0038_LAMBDA_FROM_QP_CAPABILITY
   const Int temporalId=m_pcCfg->getGOPEntry(iGOPid).m_temporalId;
@@ -439,35 +442,35 @@ Double TEncSlice::calculateLambda( const TComSlice* slice,
 {
   enum   SliceType eSliceType    = slice->getSliceType();
   const  Bool      isField       = slice->getPic()->isField();
-  const  Int       NumberBFrames = ( m_pcCfg->getGOPSize() - 1 );
+  const  Int       NumberBFrames = ( m_pcCfg->getGOPSize() - 1 );//bframes数目：getGOPSize默认为16
   const  Int       SHIFT_QP      = 12;
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-  const Int temporalId=m_pcCfg->getGOPEntry(GOPid).m_temporalId;
-  const std::vector<Double> &intraLambdaModifiers=m_pcCfg->getIntraLambdaModifier();
+  const Int temporalId=m_pcCfg->getGOPEntry(GOPid).m_temporalId;//m_temporalId当前帧所在的时域子层的序号 ? GOPEntry表示某一帧对应的GOP信息
+  const std::vector<Double> &intraLambdaModifiers=m_pcCfg->getIntraLambdaModifier();//获取intra lambda的调节器Modifier
 #endif
 
-#if FULL_NBIT
+#if FULL_NBIT //HDR, 调节lambda适应hdr的rdo模型
   Int    bitdepth_luma_qp_scale = 6 * (slice->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) - 8);
 #else
   Int    bitdepth_luma_qp_scale = 0;
 #endif
   Double qp_temp = dQP + bitdepth_luma_qp_scale - SHIFT_QP;
   // Case #1: I or P-slices (key-frame)
-  Double dQPFactor = m_pcCfg->getGOPEntry(GOPid).m_QPFactor;
+  Double dQPFactor = m_pcCfg->getGOPEntry(GOPid).m_QPFactor;//GOPEntry中存有该帧对应的信息，从中获取m_QPFactor
   if ( eSliceType==I_SLICE )
   {
     if (m_pcCfg->getIntraQpFactor()>=0.0 && m_pcCfg->getGOPEntry(GOPid).m_sliceType != I_SLICE)
     {
-      dQPFactor=m_pcCfg->getIntraQpFactor();
+      dQPFactor=m_pcCfg->getIntraQpFactor(); //m_dIntraQpFactor, 配置参数中设置，默认为-1， 不进入
     }
     else
     {
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-      if(m_pcCfg->getLambdaFromQPEnable())
+      if(m_pcCfg->getLambdaFromQPEnable())//LambdaFromQpEnable, 配置文件中设置，默认为true---来自X0038
       {
         dQPFactor=0.57;
       }
-      else
+      else //否则使用GOP size为dQPFactor做scale
       {
 #endif
         Double dLambda_scale = 1.0 - Clip3( 0.0, 0.5, 0.05*(Double)(isField ? NumberBFrames/2 : NumberBFrames) );
@@ -478,16 +481,16 @@ Double TEncSlice::calculateLambda( const TComSlice* slice,
     }
   }
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-  else if( m_pcCfg->getLambdaFromQPEnable() )
+  else if( m_pcCfg->getLambdaFromQPEnable() )//非I帧
   {
-    dQPFactor=0.57;
+    dQPFactor=0.57;//设置为默认值0.57
   }
 #endif
 
   Double dLambda = dQPFactor*pow( 2.0, qp_temp/3.0 );
 
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-  if( !(m_pcCfg->getLambdaFromQPEnable()) && depth>0 )
+  if( !(m_pcCfg->getLambdaFromQPEnable()) && depth>0 )//depth--->slice GOP hierarchical depth. //LambdaFromQpEnable若可用，则下面不再进入
 #else
   if ( depth>0 )
 #endif
@@ -508,20 +511,25 @@ Double TEncSlice::calculateLambda( const TComSlice* slice,
   }
 
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
-  Double lambdaModifier;
+  Double lambdaModifier;//lambdaModifier也是通过配置文件进行设置，默认为1.0，具体如何设置待分析
   if( eSliceType != I_SLICE || intraLambdaModifiers.empty())
   {
-    lambdaModifier = m_pcCfg->getLambdaModifier( temporalId );
+    lambdaModifier = m_pcCfg->getLambdaModifier( temporalId );//根据temporalId火族lambda矫正器, 默认值都是1.0
   }
-  else
+  else //若intraLambdaModifiers非空
   {
     lambdaModifier = intraLambdaModifiers[ (temporalId < intraLambdaModifiers.size()) ? temporalId : (intraLambdaModifiers.size()-1) ];
   }
   dLambda *= lambdaModifier;
 #endif
 
-  iQP = max( -slice->getSPS()->getQpBDOffset(CHANNEL_TYPE_LUMA), min( MAX_QP, (Int) floor( dQP + 0.5 ) ) );
+  iQP = max( -slice->getSPS()->getQpBDOffset(CHANNEL_TYPE_LUMA), min( MAX_QP, (Int) floor( dQP + 0.5 ) ) );//dQP向上取整为iQP
   
+  //printf("qp=%.2f, iqp=%d, lambda=%f, dQPFactor=%f\n", dQP, iQP, dLambda, dQPFactor);
+
+  //总结下来就是：如果开启LambdaFromQpEnable且lambdaModifier为1，则lambda的计算公式为dLambda = 0.57*pow( 2.0, qp_temp/3.0 );
+  //lambda的变化都在前面getQPForPicture获取qp的过程中完成
+
   // NOTE: the lambda modifiers that are sometimes applied later might be best always applied in here.
   return dLambda;
 }

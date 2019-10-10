@@ -1392,6 +1392,9 @@ Bool TEncTop::SPSNeedsWriting(Int spsId)
 }
 
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
+/*
+*根据配置文件中的参数，设定qp的offset：IntraQPOffset, QPoffset, QPOffsetModelOff, QPOffsetModelScale
+*/
 Int TEncCfg::getQPForPicture(const UInt gopIndex, const TComSlice *pSlice) const
 {
   const Int lumaQpBDOffset = pSlice->getSPS()->getQpBDOffset(CHANNEL_TYPE_LUMA);
@@ -1406,7 +1409,7 @@ Int TEncCfg::getQPForPicture(const UInt gopIndex, const TComSlice *pSlice) const
     const SliceType sliceType=pSlice->getSliceType();
 
     qp = getBaseQP();
-
+    //printf("getQPForPicture: baseQP=%d\n", qp);
 #if JVET_G0101_QP_SWITCHING
     // modify QP if a fractional QP was originally specified, cause dQPs to be 0 or 1.
     const Int* pdQPs = getdQPs();
@@ -1418,7 +1421,7 @@ Int TEncCfg::getQPForPicture(const UInt gopIndex, const TComSlice *pSlice) const
 
     if(sliceType==I_SLICE)
     {
-      qp += getIntraQPOffset();
+      qp += getIntraQPOffset();//IntraQPOffset
     }
     else
     {
@@ -1427,12 +1430,14 @@ Int TEncCfg::getQPForPicture(const UInt gopIndex, const TComSlice *pSlice) const
       {
         const GOPEntry &gopEntry=getGOPEntry(gopIndex);
         // adjust QP according to the QP offset for the GOP entry.
-        qp +=gopEntry.m_QPOffset;
+        qp +=gopEntry.m_QPOffset;//QPoffset
 
         // adjust QP according to QPOffsetModel for the GOP entry.
-        Double dqpOffset=qp*gopEntry.m_QPOffsetModelScale+gopEntry.m_QPOffsetModelOffset+0.5;
-        Int qpOffset = (Int)floor(Clip3<Double>(0.0, 3.0, dqpOffset));
-        qp += qpOffset ;
+        Double dqpOffset=qp*gopEntry.m_QPOffsetModelScale+gopEntry.m_QPOffsetModelOffset+0.5; //QPOffsetModelOff, QPOffsetModelScale
+        Int qpOffset = (Int)floor(Clip3<Double>(0.0, 3.0, dqpOffset));//限制偏移范围为0-3
+        qp += qpOffset;
+        //printf("getQPForPicture: m_QPOffset=%d, m_QPOffsetModelScale=%.4f, m_QPOffsetModelOffset=%.4f\n",gopEntry.m_QPOffset, gopEntry.m_QPOffsetModelScale, gopEntry.m_QPOffsetModelOffset);
+        //printf("getQPForPicture: qp1=%d, dqpOffset=%.2f, qpOffset=%d\n", qp, dqpOffset, qpOffset);
       }
     }
 
@@ -1446,6 +1451,7 @@ Int TEncCfg::getQPForPicture(const UInt gopIndex, const TComSlice *pSlice) const
 #endif
   }
   qp = Clip3( -lumaQpBDOffset, MAX_QP, qp );
+  //printf("getQPForPicture-output: qp=%d\n", qp);
   return qp;
 }
 #endif
